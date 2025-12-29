@@ -141,3 +141,5 @@ Thumbs.db
 *.srt
 *.vtt
 test_outputs/
+STRUCT.md
+SUM.md
