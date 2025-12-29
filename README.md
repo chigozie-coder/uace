@@ -85,7 +85,7 @@ pip install "uace[all]"
 ### Development
 
 ```bash
-git clone https://github.com/uace/uace
+git clone https://github.com/chigozie-coder/uace
 cd uace
 pip install -e ".[dev]"
 ```
