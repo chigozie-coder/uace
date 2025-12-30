@@ -531,6 +531,7 @@ MIT License - See [LICENSE](LICENSE)
 
 ## 🎉 Version History
 
+- **v0.1.2** - Small Bug Fix
 - **v0.1.1** - Bug fixes, burn-in, font customization
 - **v0.1.0** - Initial release
 

@@ -19,6 +19,11 @@ from uace.utils.helpers import (
     check_ffmpeg,
 )
 
+from uace.utils.burnin import (
+    VideoBurnIn,
+    burn_captions,
+)
+
 __all__ = [
     "is_video_file",
     "is_audio_file",
@@ -32,4 +37,6 @@ __all__ = [
     "estimate_processing_time",
     "get_gpu_info",
     "check_ffmpeg",
+    "VideoBurnIn",
+    "burn_captions",
 ]
