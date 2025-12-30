@@ -39,7 +39,17 @@ class Word(BaseModel):
     text: str
     start: float
     end: float
-    confidence: float = Field(ge=0.0, le=1.0, default=1.0)
+    confidence: float = Field(default=1.0)
+    
+    @field_validator('confidence', mode='before')
+    @classmethod
+    def normalize_confidence(cls, v: float) -> float:
+        """Normalize confidence scores (handle log probabilities from Whisper)."""
+        if v < 0:
+            # Whisper returns log probabilities, convert to probability
+            import math
+            v = math.exp(max(v, -10.0))  # Clamp to avoid underflow
+        return max(0.0, min(1.0, v))
     
     @property
     def duration(self) -> float:
@@ -57,8 +67,18 @@ class CaptionSegment(BaseModel):
     text: str = Field(description="The caption text")
     start: float = Field(ge=0, description="Start time in seconds")
     end: float = Field(ge=0, description="End time in seconds")
-    confidence: float = Field(ge=0.0, le=1.0, default=1.0)
+    confidence: float = Field(default=1.0, description="Confidence score (normalized to 0-1)")
     speaker: Optional[str] = Field(default=None, description="Speaker identifier")
+    
+    @field_validator('confidence', mode='before')
+    @classmethod
+    def normalize_confidence(cls, v: float) -> float:
+        """Normalize confidence scores (handle log probabilities from Whisper)."""
+        if v < 0:
+            # Whisper returns log probabilities, convert to probability
+            import math
+            v = math.exp(max(v, -10.0))  # Clamp to avoid underflow
+        return max(0.0, min(1.0, v))
     
     # Cleaning tracking
     raw_text: Optional[str] = Field(default=None, description="Original unprocessed text")
