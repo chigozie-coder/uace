@@ -108,10 +108,24 @@ class FasterWhisperEngine(TranscriptionEngine):
         
         device = "cuda" if self.config.gpu else "cpu"
         
+        # Auto-detect compute type based on device
+        compute_type = self.config.compute_type
+        if compute_type == "auto":
+            if device == "cuda":
+                compute_type = "float16"  # GPU supports float16
+            else:
+                compute_type = "int8"  # CPU works best with int8
+        
+        # Validate compute type for device
+        if device == "cpu" and compute_type == "float16":
+            # CPU doesn't support efficient float16, fallback to int8
+            compute_type = "int8"
+            print("⚠️  float16 not supported on CPU, using int8")
+        
         self.model = WhisperModel(
             self.config.model,
             device=device,
-            compute_type=self.config.compute_type,
+            compute_type=compute_type,
         )
         
         self.model_loaded = True
@@ -141,16 +155,19 @@ class FasterWhisperEngine(TranscriptionEngine):
                         text=word.word,
                         start=word.start,
                         end=word.end,
-                        confidence=word.probability
+                        confidence=word.probability  # Validator will normalize
                     )
                     for word in segment.words
                 ]
+            
+            # Get confidence (avg_logprob may be negative, validator will normalize)
+            confidence = getattr(segment, 'avg_logprob', 0.0)
             
             cap_segment = CaptionSegment(
                 text=segment.text.strip(),
                 start=segment.start,
                 end=segment.end,
-                confidence=getattr(segment, 'avg_logprob', 1.0),
+                confidence=confidence,  # Validator will handle negative values
                 words=words
             )
             segments.append(cap_segment)
@@ -291,7 +308,7 @@ class WhisperXEngine(TranscriptionEngine):
                         text=word["word"],
                         start=word["start"],
                         end=word["end"],
-                        confidence=word.get("score", 1.0)
+                        confidence=word.get("score", 1.0)  # Validator will normalize
                     )
                     for word in segment["words"]
                 ]
@@ -300,7 +317,7 @@ class WhisperXEngine(TranscriptionEngine):
                 text=segment["text"].strip(),
                 start=segment["start"],
                 end=segment["end"],
-                confidence=segment.get("score", 1.0),
+                confidence=segment.get("score", 1.0),  # Validator will normalize
                 speaker=segment.get("speaker"),
                 words=words
             )

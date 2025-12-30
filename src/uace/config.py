@@ -52,14 +52,54 @@ class ChunkingStrategy(str, Enum):
 class StylePresetName(str, Enum):
     """Built-in style presets."""
     
+    # Viral/Social Media Styles
     VIRAL_POP = "viral_pop"
+    BIG_BOLD = "big_bold"
+    ZOOM_PUNCH = "zoom_punch"
+    WAVE_MOTION = "wave_motion"
+    ELASTIC_BOUNCE = "elastic_bounce"
+    EARTHQUAKE = "earthquake"
+    
+    # Cinematic Styles
     MINIMAL = "minimal"
-    KARAOKE = "karaoke"
     SUBTITLE_CLASSIC = "subtitle_classic"
+    CINEMATIC_FADE = "cinematic_fade"
+    NOIR_TYPEWRITER = "noir_typewriter"
+    
+    # Music/Rhythm Styles
+    KARAOKE = "karaoke"
+    BEAT_PULSE = "beat_pulse"
+    SOUND_WAVE = "sound_wave"
+    RHYTHM_BOUNCE = "rhythm_bounce"
+    
+    # Creative/Artistic Styles
+    NEON = "neon"
+    GLITCH = "glitch"
+    RETRO_VHS = "retro_vhs"
+    HOLOGRAM = "hologram"
+    GRAFFITI = "graffiti"
+    HANDWRITTEN = "handwritten"
+    
+    # Animation Styles
     BOUNCE = "bounce"
     SLIDE_UP = "slide_up"
+    SLIDE_DOWN = "slide_down"
+    FLIP_IN = "flip_in"
+    ROTATE_IN = "rotate_in"
     TYPEWRITER = "typewriter"
-    NEON = "neon"
+    BLUR_FOCUS = "blur_focus"
+    
+    # 3D/Perspective
+    PERSPECTIVE_3D = "perspective_3d"
+    DEPTH_BLUR = "depth_blur"
+    FLOATING = "floating"
+    
+    # Special Effects
+    FIRE = "fire"
+    LIGHTNING = "lightning"
+    PARTICLES = "particles"
+    SPOTLIGHT = "spotlight"
+    
     CUSTOM = "custom"
 
 
@@ -93,7 +133,7 @@ class TranscriptionConfig(BaseModel):
     
     # Performance
     gpu: bool = Field(default=True, description="Use GPU if available")
-    compute_type: str = Field(default="float16", description="Compute type (float16, int8, float32)")
+    compute_type: str = Field(default="auto", description="Compute type (auto, float16, int8, float32)")
     batch_size: int = Field(default=16, description="Batch size for processing")
     
     # Advanced features
@@ -175,36 +215,88 @@ class StylingConfig(BaseModel):
         description="Style preset to use"
     )
     
-    # Font settings
+    # Font settings (highly customizable)
     font_family: str = Field(default="Inter", description="Font family")
-    font_file: Optional[str] = Field(default=None, description="Path to font file")
-    font_size: int = Field(default=52, description="Font size")
-    font_weight: str = Field(default="bold", description="Font weight")
+    font_file: Optional[str] = Field(default=None, description="Path to custom font file")
+    font_size: int = Field(default=52, description="Font size (pixels)")
+    font_weight: str = Field(default="bold", description="Font weight (normal, bold, black)")
+    font_italic: bool = Field(default=False, description="Italic text")
     
-    # Colors
-    primary_color: str = Field(default="#FFFFFF", description="Primary text color")
-    outline_color: str = Field(default="#000000", description="Outline color")
-    background_color: Optional[str] = Field(default=None, description="Background color")
+    # Colors (fully customizable)
+    primary_color: str = Field(default="#FFFFFF", description="Primary text color (hex)")
+    secondary_color: Optional[str] = Field(default=None, description="Secondary color (hex)")
+    outline_color: str = Field(default="#000000", description="Outline color (hex)")
+    background_color: Optional[str] = Field(default=None, description="Background color (hex)")
+    shadow_color: Optional[str] = Field(default=None, description="Shadow color (hex)")
+    emphasis_color: str = Field(default="#FFD700", description="Emphasis color (hex)")
     
-    # Effects
-    outline_width: int = Field(default=3, description="Outline width")
+    # Effects (fine-tune everything)
+    outline_width: int = Field(default=3, description="Outline width (pixels)")
     shadow: bool = Field(default=True, description="Enable shadow")
+    shadow_depth: int = Field(default=2, description="Shadow depth (pixels)")
+    shadow_offset_x: int = Field(default=0, description="Shadow X offset")
+    shadow_offset_y: int = Field(default=0, description="Shadow Y offset")
     glow: bool = Field(default=False, description="Enable glow effect")
+    glow_intensity: int = Field(default=0, description="Glow intensity (0-20)")
+    blur: int = Field(default=0, description="Blur amount (0-10)")
     
-    # Animation
+    # Animation (extensive control)
     animation_style: str = Field(default="word_pop", description="Animation style")
     animation_duration: float = Field(default=0.15, description="Animation duration (seconds)")
+    stagger_delay: float = Field(default=0.05, description="Delay between words (seconds)")
     
-    # Position
+    # Advanced animation
+    ease_function: str = Field(default="ease_out", description="Easing function")
+    scale_start: float = Field(default=0.0, description="Starting scale for zoom animations")
+    scale_end: float = Field(default=1.0, description="Ending scale")
+    scale_overshoot: float = Field(default=1.2, description="Overshoot scale (for elastic)")
+    rotation_start: float = Field(default=0.0, description="Starting rotation (degrees)")
+    rotation_end: float = Field(default=0.0, description="Ending rotation (degrees)")
+    
+    # Position (precise control)
     position: str = Field(default="bottom_center", description="Caption position")
+    alignment: str = Field(default="center", description="Text alignment (left, center, right)")
+    vertical_position: str = Field(default="bottom", description="Vertical position (top, middle, bottom)")
+    margin_left: int = Field(default=0, description="Left margin (pixels)")
+    margin_right: int = Field(default=0, description="Right margin (pixels)")
+    margin_top: int = Field(default=0, description="Top margin (pixels)")
     margin_bottom: int = Field(default=100, description="Bottom margin (pixels)")
+    
+    # Layout
+    max_width_percent: int = Field(default=90, description="Max width as % of screen")
+    line_spacing: float = Field(default=1.0, description="Line spacing multiplier")
+    letter_spacing: int = Field(default=0, description="Letter spacing (pixels)")
     
     # Emphasis
     auto_emphasis: bool = Field(default=True, description="Auto-detect words to emphasize")
-    emphasis_color: str = Field(default="#FFD700", description="Emphasis color")
+    emphasis_words: List[str] = Field(default_factory=list, description="Specific words to emphasize")
+    emphasis_scale: float = Field(default=1.1, description="Scale multiplier for emphasized words")
+    emphasis_animation: Optional[str] = Field(default=None, description="Special animation for emphasized words")
     
     # Karaoke mode
     karaoke_mode: bool = Field(default=False, description="Enable karaoke-style timing")
+    karaoke_fill_color: str = Field(default="#FFD700", description="Karaoke fill color")
+    
+    # 3D Effects
+    perspective: bool = Field(default=False, description="Enable 3D perspective")
+    perspective_depth: int = Field(default=1000, description="Perspective depth (pixels)")
+    rotation_x: float = Field(default=0.0, description="3D rotation X axis (degrees)")
+    rotation_y: float = Field(default=0.0, description="3D rotation Y axis (degrees)")
+    rotation_z: float = Field(default=0.0, description="3D rotation Z axis (degrees)")
+    
+    # Advanced effects
+    text_transform: str = Field(default="none", description="Text transform (none, uppercase, lowercase, capitalize)")
+    opacity: float = Field(default=1.0, description="Text opacity (0.0-1.0)")
+    background_opacity: float = Field(default=0.8, description="Background opacity if enabled")
+    background_padding: int = Field(default=10, description="Background padding (pixels)")
+    background_radius: int = Field(default=0, description="Background border radius (pixels)")
+    
+    # Special effects
+    stroke_style: str = Field(default="solid", description="Stroke style (solid, dashed, dotted)")
+    gradient_enabled: bool = Field(default=False, description="Enable gradient fill")
+    gradient_start: Optional[str] = Field(default=None, description="Gradient start color")
+    gradient_end: Optional[str] = Field(default=None, description="Gradient end color")
+    gradient_angle: int = Field(default=0, description="Gradient angle (degrees)")
 
 
 class ExportConfig(BaseModel):

@@ -282,8 +282,12 @@ class CaptionEngine:
         """Styling stage (metadata only, actual rendering happens at export)."""
         start_time = time.time()
         
-        # Get preset
-        preset = get_preset(self.config.styling.preset.value)
+        # Get preset - handle both enum and string
+        preset_name = self.config.styling.preset
+        if hasattr(preset_name, 'value'):
+            preset_name = preset_name.value
+        
+        preset = get_preset(preset_name)
         if not preset:
             preset = VIRAL_POP
         

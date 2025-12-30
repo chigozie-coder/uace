@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uace"
-version = "0.1.0"
+version = "0.1.1"
 description = "Universal Auto-Caption Engine - Speech refinement with motion typography"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "UACE Contributors", email = "hello@uace.dev"}
+    {name = "Chigozie Anyaeji", email = "chigozieanyaeji@gmail.com"}
 ]
 keywords = [
     "captions",
@@ -78,10 +78,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/uace/uace"
-Documentation = "https://docs.uace.dev"
-Repository = "https://github.com/uace/uace"
-Issues = "https://github.com/uace/uace/issues"
+Homepage = "https://github.com/chigozie-coder/uace"
+Documentation = "https://github.com/chigozie-coder/uace"
+Repository = "https://github.com/chigozie-coder/uace"
+Issues = "https://github.com/chigozie-coder/uace/issues"
 
 [project.scripts]
 uace = "uace.cli:main"
