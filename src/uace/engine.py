@@ -74,10 +74,45 @@ class CaptionEngine:
             log_file=log_file
         )
         
+        # Ensure logger has required methods (backward compatibility)
+        self._ensure_logger_methods()
+        
         # Components (lazy-loaded)
         self._transcription_engine = None
         self._cleaner = None
         self._chunker = None
+    
+    def _ensure_logger_methods(self):
+        """Ensure logger has all required methods (backward compatibility)."""
+        if not hasattr(self.logger, 'stage'):
+            def stage(name: str, current: int, total: int):
+                self.logger.info(f"Stage {current}/{total}: {name}")
+            self.logger.stage = stage
+        
+        if not hasattr(self.logger, 'statistics'):
+            def statistics(stats: dict):
+                self.logger.info("\n" + "="*70)
+                self.logger.info("📊 STATISTICS")
+                self.logger.info("="*70)
+                for key, value in stats.items():
+                    self.logger.info(f"  {key}: {value}")
+                self.logger.info("="*70)
+            self.logger.statistics = statistics
+        
+        if not hasattr(self.logger, 'close_all_progress'):
+            def close_all_progress():
+                pass  # No-op if not available
+            self.logger.close_all_progress = close_all_progress
+        
+        if not hasattr(self.logger, 'progress_bar'):
+            def progress_bar(total: int, desc: str = "", **kwargs):
+                class DummyProgressBar:
+                    def update(self, n=1): pass
+                    def close(self): pass
+                    def __enter__(self): return self
+                    def __exit__(self, *args): pass
+                return DummyProgressBar()
+            self.logger.progress_bar = progress_bar
     
     def process(
         self,
@@ -474,4 +509,3 @@ def quick_caption(
     
     engine = CaptionEngine(config)
     return engine.process(input_file, output)
- 

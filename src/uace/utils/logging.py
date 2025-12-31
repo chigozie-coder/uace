@@ -62,7 +62,7 @@ def setup_logging(
     log_file: Optional[str] = None,
     use_colors: bool = True,
     verbose: bool = False
-) -> logging.Logger:
+) -> UACELogger:
     """
     Setup UACE logging configuration.
     
@@ -73,7 +73,7 @@ def setup_logging(
         verbose: Enable verbose logging (DEBUG level)
         
     Returns:
-        Configured logger
+        UACELogger instance
     """
     
     # Set level
@@ -120,10 +120,9 @@ def setup_logging(
         )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
-        
-        logger.info(f"Logging to file: {log_file}")
     
-    return logger
+    # Return UACELogger instance instead of standard logger
+    return UACELogger("uace", verbose=verbose)
 
 
 def get_logger(name: str = "uace") -> logging.Logger:
