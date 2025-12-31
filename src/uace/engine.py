@@ -179,7 +179,7 @@ class CaptionEngine:
         self.logger.stage("Transcription", 1, 5)
         transcription = self._transcribe(audio_file)
         self.logger.info(f"✅ Transcribed {len(transcription.segments)} segments")
-        self.logger.info(f"⏱️  Duration: {transcription.duration:.1f}s")
+        self.logger.info(f"⏱️  Duration: {transcription.audio_duration:.1f}s")
         
         # Stage 2: Cleaning
         self.logger.stage("Cleaning", 2, 5)
