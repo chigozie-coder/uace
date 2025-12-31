@@ -474,3 +474,4 @@ def quick_caption(
     
     engine = CaptionEngine(config)
     return engine.process(input_file, output)
+ 

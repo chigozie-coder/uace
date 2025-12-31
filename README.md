@@ -531,6 +531,7 @@ MIT License - See [LICENSE](LICENSE)
 
 ## 🎉 Version History
 
+- **v0.1.4** - Small bug fix
 - **v0.1.3** - Logging and Intelligent Speaker labelling added
 - **v0.1.2** - Small Bug Fix
 - **v0.1.1** - Bug fixes, burn-in, font customization

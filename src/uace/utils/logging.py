@@ -143,6 +143,7 @@ class UACELogger:
     def __init__(self, name: str = "uace", verbose: bool = False):
         self.logger = logging.getLogger(name)
         self.verbose = verbose
+        self._progress_bars = []
         
     def debug(self, msg: str):
         """Log debug message."""
@@ -163,6 +164,68 @@ class UACELogger:
     def critical(self, msg: str):
         """Log critical message."""
         self.logger.critical(msg)
+    
+    def stage(self, name: str, current: int, total: int):
+        """
+        Log a processing stage.
+        
+        Args:
+            name: Stage name
+            current: Current stage number
+            total: Total number of stages
+        """
+        self.logger.info(f"Stage {current}/{total}: {name}")
+    
+    def statistics(self, stats: dict):
+        """
+        Log statistics.
+        
+        Args:
+            stats: Dictionary of statistics to log
+        """
+        self.logger.info("\n" + "="*70)
+        self.logger.info("📊 STATISTICS")
+        self.logger.info("="*70)
+        for key, value in stats.items():
+            self.logger.info(f"  {key}: {value}")
+        self.logger.info("="*70)
+    
+    def close_all_progress(self):
+        """Close any open progress bars."""
+        for pbar in self._progress_bars:
+            if hasattr(pbar, 'close'):
+                pbar.close()
+        self._progress_bars.clear()
+    
+    def progress_bar(self, total: int, desc: str = "", **kwargs):
+        """
+        Create a progress bar.
+        
+        Args:
+            total: Total number of items
+            desc: Description text
+            **kwargs: Additional tqdm arguments
+            
+        Returns:
+            tqdm progress bar or dummy object
+        """
+        try:
+            from tqdm import tqdm
+            pbar = tqdm(total=total, desc=desc, **kwargs)
+            self._progress_bars.append(pbar)
+            return pbar
+        except ImportError:
+            # Return dummy object if tqdm not available
+            class DummyProgressBar:
+                def update(self, n=1):
+                    pass
+                def close(self):
+                    pass
+                def __enter__(self):
+                    return self
+                def __exit__(self, *args):
+                    pass
+            return DummyProgressBar()
 
 
 __all__ = [
