@@ -52,9 +52,89 @@ class ColoredFormatter(logging.Formatter):
         # Add color
         levelname = record.levelname
         if levelname in self.COLORS:
+            # Create a copy to avoid modifying the original record permanently
+            # (which can affect other handlers)
+            original_levelname = record.levelname
             record.levelname = f"{self.COLORS[levelname]}{self.EMOJI.get(levelname, '')} {levelname}{self.RESET}"
+            result = super().format(record)
+            record.levelname = original_levelname
+            return result
         
         return super().format(record)
+
+
+class UACELogger:
+    """
+    UACE-specific logger with tqdm integration.
+    Wraps a standard logger to add custom methods like stage() and statistics().
+    """
+    
+    def __init__(self, name: str = "uace", verbose: bool = False):
+        self.logger = logging.getLogger(name)
+        self.verbose = verbose
+        self._progress_bars = []
+        
+    def debug(self, msg: str):
+        """Log debug message."""
+        self.logger.debug(msg)
+    
+    def info(self, msg: str):
+        """Log info message."""
+        self.logger.info(msg)
+    
+    def warning(self, msg: str):
+        """Log warning message."""
+        self.logger.warning(msg)
+    
+    def error(self, msg: str):
+        """Log error message."""
+        self.logger.error(msg)
+    
+    def critical(self, msg: str):
+        """Log critical message."""
+        self.logger.critical(msg)
+    
+    def stage(self, name: str, current: int, total: int):
+        """
+        Log a processing stage.
+        """
+        self.logger.info(f"Stage {current}/{total}: {name}")
+    
+    def statistics(self, stats: dict):
+        """
+        Log statistics.
+        """
+        self.logger.info("\n" + "="*70)
+        self.logger.info("📊 STATISTICS")
+        self.logger.info("="*70)
+        for key, value in stats.items():
+            self.logger.info(f"  {key}: {value}")
+        self.logger.info("="*70)
+    
+    def close_all_progress(self):
+        """Close any open progress bars."""
+        for pbar in self._progress_bars:
+            if hasattr(pbar, 'close'):
+                pbar.close()
+        self._progress_bars.clear()
+    
+    def progress_bar(self, total: int, desc: str = "", **kwargs):
+        """
+        Create a progress bar.
+        """
+        try:
+            from tqdm import tqdm
+            pbar = tqdm(total=total, desc=desc, **kwargs)
+            self._progress_bars.append(pbar)
+            return pbar
+        except ImportError:
+            # Return dummy object if tqdm not available
+            class DummyProgressBar:
+                def update(self, n=1): pass
+                def close(self): pass
+                def __enter__(self): return self
+                def __exit__(self, *args): pass
+            return DummyProgressBar()
 
 
 def setup_logging(
@@ -66,12 +146,6 @@ def setup_logging(
     """
     Setup UACE logging configuration.
     
-    Args:
-        level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        log_file: Optional file to write logs to
-        use_colors: Use colored output
-        verbose: Enable verbose logging (DEBUG level)
-        
     Returns:
         UACELogger instance
     """
@@ -121,111 +195,17 @@ def setup_logging(
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
     
-    # Return UACELogger instance instead of standard logger
+    # Return UACELogger instance
     return UACELogger("uace", verbose=verbose)
 
 
 def get_logger(name: str = "uace") -> logging.Logger:
-    """Get or create a logger."""
+    """Get standard logger (legacy support)."""
     return logging.getLogger(name)
 
 
 # Create default logger
 logger = get_logger()
-
-
-class UACELogger:
-    """
-    UACE-specific logger with tqdm integration.
-    """
-    
-    def __init__(self, name: str = "uace", verbose: bool = False):
-        self.logger = logging.getLogger(name)
-        self.verbose = verbose
-        self._progress_bars = []
-        
-    def debug(self, msg: str):
-        """Log debug message."""
-        self.logger.debug(msg)
-    
-    def info(self, msg: str):
-        """Log info message."""
-        self.logger.info(msg)
-    
-    def warning(self, msg: str):
-        """Log warning message."""
-        self.logger.warning(msg)
-    
-    def error(self, msg: str):
-        """Log error message."""
-        self.logger.error(msg)
-    
-    def critical(self, msg: str):
-        """Log critical message."""
-        self.logger.critical(msg)
-    
-    def stage(self, name: str, current: int, total: int):
-        """
-        Log a processing stage.
-        
-        Args:
-            name: Stage name
-            current: Current stage number
-            total: Total number of stages
-        """
-        self.logger.info(f"Stage {current}/{total}: {name}")
-    
-    def statistics(self, stats: dict):
-        """
-        Log statistics.
-        
-        Args:
-            stats: Dictionary of statistics to log
-        """
-        self.logger.info("\n" + "="*70)
-        self.logger.info("📊 STATISTICS")
-        self.logger.info("="*70)
-        for key, value in stats.items():
-            self.logger.info(f"  {key}: {value}")
-        self.logger.info("="*70)
-    
-    def close_all_progress(self):
-        """Close any open progress bars."""
-        for pbar in self._progress_bars:
-            if hasattr(pbar, 'close'):
-                pbar.close()
-        self._progress_bars.clear()
-    
-    def progress_bar(self, total: int, desc: str = "", **kwargs):
-        """
-        Create a progress bar.
-        
-        Args:
-            total: Total number of items
-            desc: Description text
-            **kwargs: Additional tqdm arguments
-            
-        Returns:
-            tqdm progress bar or dummy object
-        """
-        try:
-            from tqdm import tqdm
-            pbar = tqdm(total=total, desc=desc, **kwargs)
-            self._progress_bars.append(pbar)
-            return pbar
-        except ImportError:
-            # Return dummy object if tqdm not available
-            class DummyProgressBar:
-                def update(self, n=1):
-                    pass
-                def close(self):
-                    pass
-                def __enter__(self):
-                    return self
-                def __exit__(self, *args):
-                    pass
-            return DummyProgressBar()
-
 
 __all__ = [
     "setup_logging",

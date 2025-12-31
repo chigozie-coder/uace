@@ -6,6 +6,7 @@ This is what users interact with.
 """
 
 import time
+import logging
 from pathlib import Path
 from typing import Optional, Union
 from rich.console import Console
@@ -27,26 +28,6 @@ class CaptionEngine:
     Universal Auto-Caption Engine
     
     The complete pipeline: Transcribe → Clean → Chunk → Style → Export
-    
-    Examples:
-        # Simple usage
-        >>> engine = CaptionEngine()
-        >>> engine.process("video.mp4", output="captions.ass")
-        
-        # Custom configuration
-        >>> config = ProcessingConfig.quick(
-        ...     cleaning=CleaningMode.AGGRESSIVE,
-        ...     style="viral_pop"
-        ... )
-        >>> engine = CaptionEngine(config)
-        >>> engine.process("video.mp4")
-        
-        # Advanced control
-        >>> config = ProcessingConfig()
-        >>> config.transcription.diarization = True
-        >>> config.cleaning.mode = CleaningMode.BALANCED
-        >>> engine = CaptionEngine(config)
-        >>> caption = engine.process_audio("podcast.mp3")
     """
     
     def __init__(
@@ -57,11 +38,6 @@ class CaptionEngine:
     ):
         """
         Initialize Caption Engine.
-        
-        Args:
-            config: Processing configuration (uses defaults if None)
-            verbose: Enable verbose output with progress bars
-            log_file: Optional log file path
         """
         self.config = config or ProcessingConfig()
         self.verbose = verbose or self.config.verbose
@@ -74,45 +50,61 @@ class CaptionEngine:
             log_file=log_file
         )
         
-        # Ensure logger has required methods (backward compatibility)
-        self._ensure_logger_methods()
+        # FIX: Ensure logger works even if setup_logging returned a standard logger
+        self._ensure_robust_logger()
         
         # Components (lazy-loaded)
         self._transcription_engine = None
         self._cleaner = None
         self._chunker = None
     
-    def _ensure_logger_methods(self):
-        """Ensure logger has all required methods (backward compatibility)."""
-        if not hasattr(self.logger, 'stage'):
-            def stage(name: str, current: int, total: int):
+    def _ensure_robust_logger(self):
+        """
+        Guarantees self.logger has 'stage' and other custom methods.
+        If we got a standard Logger, we wrap it in an adapter.
+        """
+        # If it already has the method, we are good (it's likely a UACELogger)
+        if hasattr(self.logger, 'stage'):
+            return
+
+        # If we are here, we have a standard Logger (or broken object). Wrap it.
+        class LoggerAdapter:
+            def __init__(self, original_logger):
+                self.logger = original_logger
+            
+            def __getattr__(self, name):
+                # Pass through standard methods (info, error, etc.) to the real logger
+                return getattr(self.logger, name)
+
+            def stage(self, name: str, current: int, total: int):
                 self.logger.info(f"Stage {current}/{total}: {name}")
-            self.logger.stage = stage
-        
-        if not hasattr(self.logger, 'statistics'):
-            def statistics(stats: dict):
+
+            def statistics(self, stats: dict):
                 self.logger.info("\n" + "="*70)
                 self.logger.info("📊 STATISTICS")
                 self.logger.info("="*70)
                 for key, value in stats.items():
                     self.logger.info(f"  {key}: {value}")
                 self.logger.info("="*70)
-            self.logger.statistics = statistics
-        
-        if not hasattr(self.logger, 'close_all_progress'):
-            def close_all_progress():
-                pass  # No-op if not available
-            self.logger.close_all_progress = close_all_progress
-        
-        if not hasattr(self.logger, 'progress_bar'):
-            def progress_bar(total: int, desc: str = "", **kwargs):
-                class DummyProgressBar:
-                    def update(self, n=1): pass
-                    def close(self): pass
-                    def __enter__(self): return self
-                    def __exit__(self, *args): pass
-                return DummyProgressBar()
-            self.logger.progress_bar = progress_bar
+
+            def close_all_progress(self):
+                pass
+
+            def progress_bar(self, total: int, desc: str = "", **kwargs):
+                # Simple fallback
+                try:
+                    from tqdm import tqdm
+                    return tqdm(total=total, desc=desc, **kwargs)
+                except ImportError:
+                    class Dummy:
+                        def update(self, n=1): pass
+                        def close(self): pass
+                        def __enter__(self): return self
+                        def __exit__(self, *args): pass
+                    return Dummy()
+
+        # Replace the raw logger with our adapter
+        self.logger = LoggerAdapter(self.logger)
     
     def process(
         self,
@@ -122,16 +114,6 @@ class CaptionEngine:
     ) -> Caption:
         """
         Process a video or audio file end-to-end.
-        
-        This is the main entry point for most users.
-        
-        Args:
-            input_file: Path to video or audio file
-            output: Output file path (auto-generated if None)
-            **overrides: Override config parameters
-            
-        Returns:
-            Caption object with all segments
         """
         input_path = Path(input_file)
         
@@ -152,7 +134,9 @@ class CaptionEngine:
         elif suffix in video_extensions:
             return self.process_video(str(input_path), output)
         else:
-            raise ValueError(f"Unsupported file format: {suffix}")
+            # Fallback: Try processing as audio anyway if extension unknown
+            self.logger.warning(f"Unknown extension {suffix}, attempting to process as audio/video")
+            return self.process_video(str(input_path), output)
     
     def process_video(
         self,
@@ -161,10 +145,9 @@ class CaptionEngine:
     ) -> Caption:
         """
         Process a video file.
-        
         Extracts audio, then processes as audio.
         """
-        if self.verbose:
+        if self.verbose and self.console:
             self.console.print("[bold blue]Processing video...[/bold blue]")
         
         # Extract audio (would use ffmpeg in production)
@@ -172,9 +155,6 @@ class CaptionEngine:
         
         # Process audio
         caption = self.process_audio(audio_file, output)
-        
-        # Clean up temp audio if created
-        # (implementation detail)
         
         return caption
     
@@ -185,13 +165,6 @@ class CaptionEngine:
     ) -> Caption:
         """
         Process an audio file through the complete pipeline.
-        
-        Pipeline stages:
-        1. Transcription
-        2. Cleaning
-        3. Chunking
-        4. Styling (metadata only)
-        5. Export
         """
         start_time = time.time()
         
@@ -237,7 +210,7 @@ class CaptionEngine:
             "Word Count": caption.word_count,
             "Avg Confidence": f"{caption.avg_confidence:.1%}",
             "Processing Time": f"{total_time:.1f}s",
-            "Speed": f"{caption.duration/total_time:.1f}x realtime"
+            "Speed": f"{caption.duration/total_time if total_time > 0 else 0:.1f}x realtime"
         })
         
         self.logger.info("🎉 Caption generation complete!\n")
@@ -284,7 +257,6 @@ class CaptionEngine:
         
         # Clean segments with progress bar
         pbar = self.logger.progress_bar(
-            "cleaning",
             total=len(caption.segments),
             desc="Cleaning segments",
             unit="seg"
@@ -418,7 +390,7 @@ class CaptionEngine:
         else:
             raise ValueError(f"Unsupported export format: {export_format}")
         
-        if self.verbose:
+        if self.verbose and self.console:
             self.console.print(f"[green]✓ Exported to: {output}[/green]")
     
     def _export_json(self, caption: Caption, output_path: str) -> None:
@@ -437,11 +409,6 @@ class CaptionEngine:
     def _detect_emphasis_words(self, text: str) -> list[str]:
         """
         Detect words that should be emphasized.
-        
-        Uses simple heuristics:
-        - ALL CAPS words
-        - Exclamations
-        - Question words
         """
         words = text.split()
         emphasis = []
@@ -469,6 +436,9 @@ class CaptionEngine:
         """Print processing summary."""
         from rich.table import Table
         
+        if not self.console:
+            return
+
         table = Table(title="Processing Summary")
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="green")
@@ -493,15 +463,6 @@ def quick_caption(
 ) -> Caption:
     """
     Quick caption generation with sensible defaults.
-    
-    Args:
-        input_file: Video or audio file
-        output: Output path (auto-generated if None)
-        style: Style preset name
-        cleaning: Cleaning mode
-        
-    Returns:
-        Caption object
     """
     config = ProcessingConfig.quick()
     config.styling.preset = style
