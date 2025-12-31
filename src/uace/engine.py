@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional, Union
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from tqdm import tqdm
 
 from uace.config import ProcessingConfig, CleaningMode, ExportFormat
 from uace.models import Caption, ProcessingPipeline, TranscriptionResult
@@ -18,6 +19,7 @@ from uace.cleaning.engine import SubtitleCleaner
 from uace.chunking.semantic import SemanticChunker
 from uace.styling.presets import get_preset, VIRAL_POP
 from uace.export.formats import ASSExporter, SRTExporter, VTTExporter
+from uace.utils.logging import setup_logging, UACELogger
 
 
 class CaptionEngine:
@@ -50,19 +52,27 @@ class CaptionEngine:
     def __init__(
         self,
         config: Optional[ProcessingConfig] = None,
-        verbose: bool = False
+        verbose: bool = False,
+        log_file: Optional[str] = None
     ):
         """
         Initialize Caption Engine.
         
         Args:
             config: Processing configuration (uses defaults if None)
-            verbose: Enable verbose output
+            verbose: Enable verbose output with progress bars
+            log_file: Optional log file path
         """
         self.config = config or ProcessingConfig()
         self.verbose = verbose or self.config.verbose
         self.console = Console() if self.verbose else None
         self.pipeline = ProcessingPipeline()
+        
+        # Setup logging
+        self.logger = setup_logging(
+            verbose=self.verbose,
+            log_file=log_file
+        )
         
         # Components (lazy-loaded)
         self._transcription_engine = None
@@ -148,50 +158,54 @@ class CaptionEngine:
         4. Styling (metadata only)
         5. Export
         """
-        if self.verbose:
-            progress = Progress(
-                SpinnerColumn(),
-                TextColumn("[bold blue]{task.description}"),
-                TimeElapsedColumn(),
-                console=self.console
-            )
-            progress.start()
-            task = progress.add_task("Processing", total=5)
+        start_time = time.time()
+        
+        self.logger.info("\n" + "="*70)
+        self.logger.info("🎬 UACE Caption Generation Pipeline")
+        self.logger.info("="*70)
+        self.logger.info(f"Input: {audio_file}")
+        self.logger.info(f"Output: {output or 'In-memory'}")
+        self.logger.info("")
         
         # Stage 1: Transcription
-        if self.verbose:
-            progress.update(task, description="Transcribing audio...", completed=1)
-        
+        self.logger.stage("Transcription", 1, 5)
         transcription = self._transcribe(audio_file)
+        self.logger.info(f"✅ Transcribed {len(transcription.segments)} segments")
+        self.logger.info(f"⏱️  Duration: {transcription.duration:.1f}s")
         
         # Stage 2: Cleaning
-        if self.verbose:
-            progress.update(task, description="Cleaning transcript...", completed=2)
-        
+        self.logger.stage("Cleaning", 2, 5)
         caption = self._clean(transcription)
         
         # Stage 3: Chunking
-        if self.verbose:
-            progress.update(task, description="Optimizing chunks...", completed=3)
-        
+        self.logger.stage("Chunking", 3, 5)
         caption = self._chunk(caption)
+        self.logger.info(f"✅ Created {len(caption.segments)} chunks")
         
         # Stage 4: Styling (metadata)
-        if self.verbose:
-            progress.update(task, description="Applying styling...", completed=4)
-        
+        self.logger.stage("Styling", 4, 5)
         caption = self._style(caption)
         
         # Stage 5: Export
         if output:
-            if self.verbose:
-                progress.update(task, description="Exporting...", completed=5)
-            
+            self.logger.stage("Export", 5, 5)
             self.export(caption, output)
+            self.logger.info(f"✅ Exported to {output}")
         
-        if self.verbose:
-            progress.stop()
-            self._print_summary(caption)
+        # Final summary
+        total_time = time.time() - start_time
+        self.logger.close_all_progress()
+        
+        self.logger.statistics({
+            "Total Segments": len(caption.segments),
+            "Total Duration": f"{caption.duration:.1f}s",
+            "Word Count": caption.word_count,
+            "Avg Confidence": f"{caption.avg_confidence:.1%}",
+            "Processing Time": f"{total_time:.1f}s",
+            "Speed": f"{caption.duration/total_time:.1f}x realtime"
+        })
+        
+        self.logger.info("🎉 Caption generation complete!\n")
         
         return caption
     
@@ -233,15 +247,35 @@ class CaptionEngine:
         # Convert to caption
         caption = transcription.to_caption()
         
-        # Clean segments
-        caption.segments = self._cleaner.clean_batch(caption.segments)
+        # Clean segments with progress bar
+        pbar = self.logger.progress_bar(
+            "cleaning",
+            total=len(caption.segments),
+            desc="Cleaning segments",
+            unit="seg"
+        )
+        
+        cleaned_segments = []
+        for segment in caption.segments:
+            cleaned = self._cleaner.clean_segment(segment)
+            cleaned_segments.append(cleaned)
+            pbar.update(1)
+        
+        pbar.close()
+        
+        caption.segments = cleaned_segments
         caption.cleaning_mode = self.config.cleaning.mode.value
         
         # Compute stats
         caption.compute_stats()
         
-        # Track in pipeline
+        # Log cleaning stats
         stats = self._cleaner.get_stats()
+        self.logger.info(f"   Fillers removed: {stats.fillers_removed}")
+        self.logger.info(f"   Events removed: {stats.events_removed}")
+        self.logger.info(f"   Repetitions collapsed: {stats.repetitions_collapsed}")
+        
+        # Track in pipeline
         self.pipeline.add_stage(
             "cleaning",
             duration=time.time() - start_time,

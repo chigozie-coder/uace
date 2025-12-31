@@ -42,6 +42,7 @@ class CleaningMode(str, Enum):
 class ChunkingStrategy(str, Enum):
     """Text chunking strategies."""
     
+    WORD = "word"               # One word at a time (viral TikTok style)
     SEMANTIC = "semantic"       # Chunk by semantic meaning
     SENTENCE = "sentence"       # Chunk by sentence boundaries
     FIXED_TIME = "fixed_time"   # Fixed time-based chunks

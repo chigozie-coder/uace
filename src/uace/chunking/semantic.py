@@ -51,7 +51,9 @@ class SemanticChunker:
         
         This is the main entry point.
         """
-        if self.config.strategy == ChunkingStrategy.SEMANTIC:
+        if self.config.strategy == ChunkingStrategy.WORD:
+            return self._word_chunk(segments)
+        elif self.config.strategy == ChunkingStrategy.SEMANTIC:
             return self._semantic_chunk(segments)
         elif self.config.strategy == ChunkingStrategy.SENTENCE:
             return self._sentence_chunk(segments)
@@ -63,6 +65,58 @@ class SemanticChunker:
             return self._punctuation_chunk(segments)
         else:
             return segments
+    
+    def _word_chunk(self, segments: List[CaptionSegment]) -> List[CaptionSegment]:
+        """
+        Word-by-word chunking for viral TikTok/Instagram Reels style.
+        
+        Creates one caption per word, perfectly synced with audio timing.
+        Uses word-level timestamps if available, otherwise splits evenly.
+        """
+        if not segments:
+            return []
+        
+        word_chunks = []
+        
+        for segment in segments:
+            # If segment has word-level timestamps, use them
+            if segment.words and len(segment.words) > 0:
+                # Use actual word timestamps
+                for word in segment.words:
+                    word_chunk = CaptionSegment(
+                        text=word.text.strip(),
+                        start=word.start,
+                        end=word.end,
+                        confidence=word.confidence,
+                        speaker=segment.speaker,
+                        raw_text=word.text,
+                        words=[word]
+                    )
+                    word_chunks.append(word_chunk)
+            else:
+                # No word timestamps, split text and estimate timing
+                words = segment.text.split()
+                if not words:
+                    continue
+                
+                duration = segment.end - segment.start
+                time_per_word = duration / len(words)
+                
+                for i, word in enumerate(words):
+                    word_start = segment.start + (i * time_per_word)
+                    word_end = word_start + time_per_word
+                    
+                    word_chunk = CaptionSegment(
+                        text=word.strip(),
+                        start=word_start,
+                        end=word_end,
+                        confidence=segment.confidence,
+                        speaker=segment.speaker,
+                        raw_text=word
+                    )
+                    word_chunks.append(word_chunk)
+        
+        return word_chunks
     
     def _semantic_chunk(self, segments: List[CaptionSegment]) -> List[CaptionSegment]:
         """
