@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uace"
-version = "0.1.5(fix)"
+version = "0.1.5"
 description = "Universal Auto-Caption Engine - Speech refinement with motion typography"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -41,6 +41,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "rich>=13.0.0",
     "click>=8.0.0",
+    "tqdm>=4.65.0",
 ]
 
 [project.optional-dependencies]
