@@ -30,6 +30,40 @@ class CaptionEngine:
     The complete pipeline: Transcribe → Clean → Chunk → Style → Export
     """
     
+    @staticmethod
+    def _safe_list_attr(obj, attr_name: str, default=None):
+        """
+        Safely get a list attribute, ensuring it's never None.
+        
+        Args:
+            obj: Object to get attribute from
+            attr_name: Name of the attribute
+            default: Default value if attribute is None or missing
+            
+        Returns:
+            List value or default (never None)
+        """
+        if default is None:
+            default = []
+        value = getattr(obj, attr_name, default)
+        return value if value is not None else default
+    
+    @staticmethod
+    def _safe_num_attr(obj, attr_name: str, default=0.0):
+        """
+        Safely get a numeric attribute, ensuring it's never None.
+        
+        Args:
+            obj: Object to get attribute from
+            attr_name: Name of the attribute
+            default: Default value if attribute is None or missing
+            
+        Returns:
+            Numeric value or default (never None)
+        """
+        value = getattr(obj, attr_name, None)
+        return value if value is not None else default
+    
     def __init__(
         self,
         config: Optional[ProcessingConfig] = None,
@@ -178,8 +212,11 @@ class CaptionEngine:
         # Stage 1: Transcription
         self.logger.stage("Transcription", 1, 5)
         transcription = self._transcribe(audio_file)
-        self.logger.info(f"✅ Transcribed {len(transcription.segments)} segments")
-        self.logger.info(f"⏱️  Duration: {transcription.audio_duration:.1f}s")
+        # Safe attribute access with helper - never returns None
+        transcription_segments = self._safe_list_attr(transcription, 'segments')
+        self.logger.info(f"✅ Transcribed {len(transcription_segments)} segments")
+        audio_dur = self._safe_num_attr(transcription, 'audio_duration', 0.0)
+        self.logger.info(f"⏱️  Duration: {audio_dur:.1f}s")
         
         # Stage 2: Cleaning
         self.logger.stage("Cleaning", 2, 5)
@@ -188,7 +225,8 @@ class CaptionEngine:
         # Stage 3: Chunking
         self.logger.stage("Chunking", 3, 5)
         caption = self._chunk(caption)
-        self.logger.info(f"✅ Created {len(caption.segments)} chunks")
+        seg_count = len(self._safe_list_attr(caption, 'segments'))
+        self.logger.info(f"✅ Created {seg_count} chunks")
         
         # Stage 4: Styling (metadata)
         self.logger.stage("Styling", 4, 5)
@@ -204,13 +242,19 @@ class CaptionEngine:
         total_time = time.time() - start_time
         self.logger.close_all_progress()
         
+        # Safely extract statistics with helpers - never returns None
+        segments_count = len(self._safe_list_attr(caption, 'segments'))
+        duration = self._safe_num_attr(caption, 'duration', 0.0)
+        word_count = self._safe_num_attr(caption, 'word_count', 0)
+        avg_confidence = self._safe_num_attr(caption, 'avg_confidence', 0.0)
+        
         self.logger.statistics({
-            "Total Segments": len(caption.segments),
-            "Total Duration": f"{caption.duration:.1f}s",
-            "Word Count": caption.word_count,
-            "Avg Confidence": f"{caption.avg_confidence:.1%}",
+            "Total Segments": segments_count,
+            "Total Duration": f"{duration:.1f}s",
+            "Word Count": word_count,
+            "Avg Confidence": f"{avg_confidence:.1%}",
             "Processing Time": f"{total_time:.1f}s",
-            "Speed": f"{caption.duration/total_time if total_time > 0 else 0:.1f}x realtime"
+            "Speed": f"{duration/total_time if total_time > 0 else 0:.1f}x realtime"
         })
         
         self.logger.info("🎉 Caption generation complete!\n")
@@ -235,10 +279,12 @@ class CaptionEngine:
             "transcription",
             duration=time.time() - start_time,
             metadata={
-                "engine": result.engine,
-                "model": result.model,
-                "language": result.language,
-                "segments": len(result.segments)
+                "engine": getattr(result, 'engine', 'unknown'),
+                "model": getattr(result, 'model', 'unknown'),
+                "language": getattr(result, 'language', 'en'),
+                "segments": len(self._safe_list_attr(result, 'segments'))
+            }
+        )
             }
         )
         
@@ -255,15 +301,16 @@ class CaptionEngine:
         # Convert to caption
         caption = transcription.to_caption()
         
-        # Clean segments with progress bar
+        # Clean segments with progress bar - use safe helper
+        segments_to_clean = self._safe_list_attr(caption, 'segments')
         pbar = self.logger.progress_bar(
-            total=len(caption.segments),
+            total=len(segments_to_clean),
             desc="Cleaning segments",
             unit="seg"
         )
         
         cleaned_segments = []
-        for segment in caption.segments:
+        for segment in segments_to_clean:
             cleaned = self._cleaner.clean_segment(segment)
             cleaned_segments.append(cleaned)
             pbar.update(1)
@@ -271,26 +318,32 @@ class CaptionEngine:
         pbar.close()
         
         caption.segments = cleaned_segments
-        caption.cleaning_mode = self.config.cleaning.mode.value
+        # Safe assignment with fallback
+        if hasattr(self.config.cleaning, 'mode') and hasattr(self.config.cleaning.mode, 'value'):
+            caption.cleaning_mode = self.config.cleaning.mode.value
+        else:
+            caption.cleaning_mode = 'unknown'
         
         # Compute stats
         caption.compute_stats()
         
         # Log cleaning stats
         stats = self._cleaner.get_stats()
-        self.logger.info(f"   Fillers removed: {stats.fillers_removed}")
+        fillers = getattr(stats, 'fillers_removed', 0) if stats else 0
+        reps = getattr(stats, 'repetitions_collapsed', 0) if stats else 0
+        self.logger.info(f"   Fillers removed: {fillers}")
         #self.logger.info(f"   Events removed: {stats.events_removed}")
-        self.logger.info(f"   Repetitions collapsed: {stats.repetitions_collapsed}")
+        self.logger.info(f"   Repetitions collapsed: {reps}")
         
         # Track in pipeline
         self.pipeline.add_stage(
             "cleaning",
             duration=time.time() - start_time,
             metadata={
-                "mode": self.config.cleaning.mode.value,
-                "reduction": f"{stats.reduction_percent:.1f}%",
-                "fillers_removed": stats.fillers_removed,
-                "operations": stats.operations_applied
+                "mode": getattr(self.config.cleaning.mode, 'value', 'unknown') if hasattr(self.config.cleaning, 'mode') else 'unknown',
+                "reduction": f"{getattr(stats, 'reduction_percent', 0.0):.1f}%" if stats else "0.0%",
+                "fillers_removed": getattr(stats, 'fillers_removed', 0) if stats else 0,
+                "operations": getattr(stats, 'operations_applied', []) if stats else []
             }
         )
         
@@ -304,16 +357,17 @@ class CaptionEngine:
         if not self._chunker:
             self._chunker = SemanticChunker(self.config.chunking)
         
-        # Chunk segments
-        caption.segments = self._chunker.chunk_segments(caption.segments)
+        # Chunk segments safely - use safe helper
+        segments = self._safe_list_attr(caption, 'segments')
+        caption.segments = self._chunker.chunk_segments(segments)
         
         # Track in pipeline
         self.pipeline.add_stage(
             "chunking",
             duration=time.time() - start_time,
             metadata={
-                "strategy": self.config.chunking.strategy.value,
-                "final_segments": len(caption.segments)
+                "strategy": getattr(self.config.chunking.strategy, 'value', 'unknown') if hasattr(self.config.chunking, 'strategy') else 'unknown',
+                "final_segments": len(self._safe_list_attr(caption, 'segments'))
             }
         )
         
@@ -333,20 +387,23 @@ class CaptionEngine:
             preset = VIRAL_POP
         
         # Store style info in caption
-        caption.style_preset = preset.name
+        preset_name_str = getattr(preset, 'name', 'viral_pop')
+        caption.style_preset = preset_name_str
         
         # Auto-emphasis detection (if enabled)
-        if self.config.styling.auto_emphasis:
-            for segment in caption.segments:
-                segment.emphasis_words = self._detect_emphasis_words(segment.text)
+        if getattr(self.config.styling, 'auto_emphasis', False):
+            segments = self._safe_list_attr(caption, 'segments')
+            for segment in segments:
+                if hasattr(segment, 'text'):
+                    segment.emphasis_words = self._detect_emphasis_words(segment.text)
         
         # Track in pipeline
         self.pipeline.add_stage(
             "styling",
             duration=time.time() - start_time,
             metadata={
-                "preset": preset.name,
-                "animation": self.config.styling.animation_style
+                "preset": preset_name_str,
+                "animation": getattr(self.config.styling, 'animation_style', 'default')
             }
         )
         
@@ -368,8 +425,11 @@ class CaptionEngine:
             export_format = ExportFormat.ASS
             output = output.with_suffix('.ass')
         
-        # Get preset for styling
-        preset = get_preset(self.config.styling.preset.value) or VIRAL_POP
+        # Get preset for styling - safe attribute access
+        preset_value = self.config.styling.preset
+        if hasattr(preset_value, 'value'):
+            preset_value = preset_value.value
+        preset = get_preset(preset_value) or VIRAL_POP
         
         # Export based on format
         if export_format == ExportFormat.ASS:
@@ -443,12 +503,19 @@ class CaptionEngine:
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="green")
         
-        table.add_row("Segments", str(len(caption.segments)))
-        table.add_row("Duration", f"{caption.duration:.2f}s")
-        table.add_row("Word Count", str(caption.word_count or 0))
-        table.add_row("Avg Confidence", f"{(caption.avg_confidence or 0) * 100:.1f}%")
+        # Safe attribute extraction with helpers
+        segments_count = len(self._safe_list_attr(caption, 'segments'))
+        duration = self._safe_num_attr(caption, 'duration', 0.0)
+        word_count = self._safe_num_attr(caption, 'word_count', 0)
+        avg_confidence = self._safe_num_attr(caption, 'avg_confidence', 0.0)
+        engine = getattr(caption, 'engine_used', None) or 'unknown'
+        
+        table.add_row("Segments", str(segments_count))
+        table.add_row("Duration", f"{duration:.2f}s")
+        table.add_row("Word Count", str(word_count))
+        table.add_row("Avg Confidence", f"{avg_confidence * 100:.1f}%")
         table.add_row("Processing Time", f"{self.pipeline.total_time:.2f}s")
-        table.add_row("Engine", caption.engine_used or "unknown")
+        table.add_row("Engine", engine)
         
         self.console.print(table)
 
