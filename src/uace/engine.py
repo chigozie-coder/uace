@@ -279,7 +279,7 @@ class CaptionEngine:
         # Log cleaning stats
         stats = self._cleaner.get_stats()
         self.logger.info(f"   Fillers removed: {stats.fillers_removed}")
-        self.logger.info(f"   Events removed: {stats.events_removed}")
+        #self.logger.info(f"   Events removed: {stats.events_removed}")
         self.logger.info(f"   Repetitions collapsed: {stats.repetitions_collapsed}")
         
         # Track in pipeline
