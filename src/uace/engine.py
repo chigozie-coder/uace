@@ -285,8 +285,8 @@ class CaptionEngine:
                 "segments": len(self._safe_list_attr(result, 'segments'))
             }
         )
-            }
-        )
+            
+        
         
         return result
     
