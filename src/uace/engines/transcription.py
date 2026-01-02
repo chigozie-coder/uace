@@ -22,13 +22,17 @@ try:
         VoiceActivityDetector,
         FastSpeakerEmbedder,
     )
-    from .hyperfast_v2 import (
+    HYPERFAST_AVAILABLE = True
+    try:
+        from .hyperfast_v2 import (
         HyperFastV2,
         HyperFastPro,
         AudioEnhancer,
         ImprovedSpeakerEmbedder,
         TemporalSmoother,
-    )
+        )
+    except ImportError:
+        HYPERFAST_AVAILABLE = True
     HYPERFAST_AVAILABLE = True
 except ImportError:
     HYPERFAST_AVAILABLE = False

@@ -28,7 +28,7 @@ from uace.config import TranscriptionConfig
 from uace.engines.transcription import TranscriptionEngine
 
 # Import base components from V1
-from hyperfast_engine import (
+from hyperfast import (
     VoiceActivityDetector,
     FastSpeakerEmbedder,
     SpeechSegment,
