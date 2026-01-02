@@ -22,10 +22,17 @@ class EnginePreference(str, Enum):
 class SpecificEngine(str, Enum):
     """Specific transcription engines."""
     
+    # Existing
     FASTER_WHISPER = "faster-whisper"
     OPENAI_WHISPER = "openai-whisper"
     WHISPERX = "whisperx"
     DISTIL_WHISPER = "distil-whisper"
+    
+    # NEW: HyperFast engines
+    HYPERFAST = "hyperfast"                # V1 - Fastest
+    HYPERFAST_V2 = "hyperfast-v2"          # V2 - More accurate
+    HYPERFAST_PRO = "hyperfast-pro"        # Pro - Smart ensemble
+    
     CUSTOM = "custom"
 
 

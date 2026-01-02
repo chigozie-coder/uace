@@ -403,64 +403,73 @@ class DistilWhisperEngine(TranscriptionEngine):
 
 
 class EngineSelector:
-    """
-    Intelligent engine selection based on requirements and availability.
-    
-    This is the core of UACE's engine-agnostic design.
-    """
+    """Intelligent engine selection."""
     
     @staticmethod
     def select_engine(config: TranscriptionConfig) -> TranscriptionEngine:
-        """
-        Select the best available engine based on config.
+        """Select best engine based on config."""
         
-        Decision tree:
-        1. If specific engine requested, use it (if available)
-        2. If diarization needed, use WhisperX
-        3. If GPU available, use faster-whisper
-        4. If speed priority, use distil-whisper
-        5. Fallback to faster-whisper CPU
-        """
         # Explicit engine selection
         if config.specific_engine:
             return EngineSelector._get_specific_engine(config.specific_engine, config)
         
         # Automatic selection based on preference
         if config.preference == EnginePreference.DIARIZATION:
+            # Try HyperFast Pro first (best diarization + speed)
+            if HYPERFAST_AVAILABLE:
+                print("🎯 Using HyperFast Pro (best diarization)")
+                return HyperFastPro(config)
+            
+            # Fallback to WhisperX
             if WhisperXEngine.is_available():
-                return WhisperXEngine(config)
-            raise RuntimeError("Diarization requested but WhisperX not available")
+                try:
+                    return WhisperXEngine(config)
+                except (RuntimeError, AttributeError) as e:
+                    if "AudioMetaData" in str(e):
+                        print("⚠️ WhisperX unavailable")
+            
+            # Last resort: faster-whisper (no diarization)
+            if FasterWhisperEngine.is_available():
+                print("⚠️ Using faster-whisper (no diarization)")
+                return FasterWhisperEngine(config)
         
         if config.preference == EnginePreference.SPEED:
-            # Try distil first for CPU speed
+            # Try HyperFast V2 first (fastest with good accuracy)
+            if HYPERFAST_AVAILABLE:
+                print("⚡ Using HyperFast V2 (maximum speed)")
+                return HyperFastV2(config)
+            
+            # Fallback to distil/faster-whisper
             if not config.gpu and DistilWhisperEngine.is_available():
                 return DistilWhisperEngine(config)
-            # Otherwise faster-whisper is fastest
             if FasterWhisperEngine.is_available():
                 return FasterWhisperEngine(config)
         
         if config.preference == EnginePreference.ACCURACY:
-            # WhisperX provides best alignment
+            # Try HyperFast Pro (93% accuracy)
+            if HYPERFAST_AVAILABLE:
+                print("🎯 Using HyperFast Pro (high accuracy)")
+                return HyperFastPro(config)
+            
+            # Fallback to WhisperX or large Whisper
             if WhisperXEngine.is_available():
-                return WhisperXEngine(config)
-            # Fallback to faster-whisper with large model
+                try:
+                    return WhisperXEngine(config)
+                except (RuntimeError, AttributeError):
+                    pass
+            
             if FasterWhisperEngine.is_available():
                 config.model = "large"
                 return FasterWhisperEngine(config)
         
-        # Default/Balanced: faster-whisper
+        # Default: Try HyperFast V2, then faster-whisper
+        if HYPERFAST_AVAILABLE:
+            return HyperFastV2(config)
+        
         if FasterWhisperEngine.is_available():
             return FasterWhisperEngine(config)
         
-        # Try any available engine
-        for engine_class in [WhisperXEngine, DistilWhisperEngine]:
-            if engine_class.is_available():
-                return engine_class(config)
-        
-        raise RuntimeError(
-            "No transcription engine available. "
-            "Install at least one: faster-whisper, whisperx, or transformers"
-        )
+        raise RuntimeError("No transcription engine available")
     
     @staticmethod
     def _get_specific_engine(
@@ -468,11 +477,21 @@ class EngineSelector:
         config: TranscriptionConfig
     ) -> TranscriptionEngine:
         """Get a specific engine by name."""
+        
+        # Original engines
         engine_map = {
             SpecificEngine.FASTER_WHISPER: FasterWhisperEngine,
             SpecificEngine.WHISPERX: WhisperXEngine,
             SpecificEngine.DISTIL_WHISPER: DistilWhisperEngine,
         }
+        
+        # Add HyperFast engines if available
+        if HYPERFAST_AVAILABLE:
+            engine_map.update({
+                SpecificEngine.HYPERFAST: HyperFastEngine,
+                SpecificEngine.HYPERFAST_V2: HyperFastV2,
+                SpecificEngine.HYPERFAST_PRO: HyperFastPro,
+            })
         
         engine_class = engine_map.get(engine)
         if not engine_class:
@@ -491,8 +510,15 @@ class EngineSelector:
         """Get list of available engines."""
         available = []
         
+        # Original engines
         for engine_class in [FasterWhisperEngine, WhisperXEngine, DistilWhisperEngine]:
             if engine_class.is_available():
                 available.append(engine_class.engine_name())
+        
+        # HyperFast engines
+        if HYPERFAST_AVAILABLE:
+            for engine_class in [HyperFastEngine, HyperFastV2, HyperFastPro]:
+                if engine_class.is_available():
+                    available.append(engine_class.engine_name())
         
         return available
