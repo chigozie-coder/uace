@@ -35,7 +35,7 @@ try:
         HYPERFAST_AVAILABLE = True
     HYPERFAST_AVAILABLE = True
 except ImportError:
-    HYPERFAST_AVAILABLE = False
+    HYPERFAST_AVAILABLE = True
 
 class TranscriptionEngine(ABC):
     """
