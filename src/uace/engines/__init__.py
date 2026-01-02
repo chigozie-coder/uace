@@ -48,4 +48,5 @@ if HYPERFAST_AVAILABLE:
         "ImprovedSpeakerEmbedder",
         "AudioEnhancer",
         "TemporalSmoother",
+        "HYPERFAST_AVAILABLE"
     ])
