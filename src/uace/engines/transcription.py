@@ -16,7 +16,7 @@ from pathlib import Path
 
 from uace.models import TranscriptionResult, CaptionSegment, Word
 from uace.config import TranscriptionConfig, EnginePreference, SpecificEngine
-
+from uace.engines import HYPERFAST_AVAILABLE
 
 class TranscriptionEngine(ABC):
     """
