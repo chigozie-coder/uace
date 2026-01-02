@@ -16,7 +16,22 @@ from pathlib import Path
 
 from uace.models import TranscriptionResult, CaptionSegment, Word
 from uace.config import TranscriptionConfig, EnginePreference, SpecificEngine
-from uace.engines import HYPERFAST_AVAILABLE
+try:
+    from .hyperfast import (
+        HyperFastEngine,
+        VoiceActivityDetector,
+        FastSpeakerEmbedder,
+    )
+    from .hyperfast_v2 import (
+        HyperFastV2,
+        HyperFastPro,
+        AudioEnhancer,
+        ImprovedSpeakerEmbedder,
+        TemporalSmoother,
+    )
+    HYPERFAST_AVAILABLE = True
+except ImportError:
+    HYPERFAST_AVAILABLE = False
 
 class TranscriptionEngine(ABC):
     """
