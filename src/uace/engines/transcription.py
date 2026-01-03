@@ -540,6 +540,7 @@ class EngineSelector:
                 engine_map[SpecificEngine.HYPERFAST_PRO] = HyperFastPro
         
         engine_class = engine_map.get(engine)
+        print(engine_map)
         if not engine_class:
             # Check if it's a HyperFast engine
             if engine in [SpecificEngine.HYPERFAST, SpecificEngine.HYPERFAST_V2, SpecificEngine.HYPERFAST_PRO]:
