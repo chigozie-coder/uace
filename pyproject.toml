@@ -83,7 +83,7 @@ hyperfast-v2 = [
     "librosa>=0.10.0",
     "scikit-learn>=1.3.0",
     "speechbrain>=0.5.0",
-    "deepfilternet>=0.5.0",  # Audio denoising
+    "noisereduce>=3.0.0",  # Audio denoising
 ]
 
 # HyperFast Pro (smart ensemble with Pyannote fallback)
@@ -93,7 +93,7 @@ hyperfast-pro = [
     "librosa>=0.10.0",
     "scikit-learn>=1.3.0",
     "speechbrain>=0.5.0",
-    "deepfilternet>=0.5.0",
+    "noisereduce>=3.0.0",
     "pyannote.audio>=3.1.0",  # Optional fallback for uncertain segments
 ]
 
@@ -118,7 +118,7 @@ all = [
     "librosa>=0.10.0",
     "scikit-learn>=1.3.0",
     "speechbrain>=0.5.0",
-    "deepfilternet>=0.5.0",
+    "noisereduce>=3.0.0",
     "pyannote.audio>=3.1.0",
     "ffmpeg-python>=0.2.0",
 ]

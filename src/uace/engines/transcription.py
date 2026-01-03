@@ -20,6 +20,10 @@ from uace.config import TranscriptionConfig, EnginePreference, SpecificEngine
 
 # Try to import HyperFast engines (optional)
 HYPERFAST_AVAILABLE = False
+HyperFastEngine = None
+VoiceActivityDetector = None
+FastSpeakerEmbedder = None
+
 try:
     from .hyperfast import (
         HyperFastEngine,
@@ -33,6 +37,12 @@ except ImportError:
 
 # Try to import HyperFast V2 engines (optional)
 HYPERFAST_V2_AVAILABLE = False
+HyperFastV2 = None
+HyperFastPro = None
+AudioEnhancer = None
+ImprovedSpeakerEmbedder = None
+TemporalSmoother = None
+
 try:
     from .hyperfast_v2 import (
         HyperFastV2,
@@ -45,20 +55,6 @@ try:
 except ImportError:
     # HyperFast V2 not available, will skip
     pass
-    HYPERFAST_AVAILABLE = True
-    try:
-        from .hyperfast_v2 import (
-            HyperFastV2,
-            HyperFastPro,
-            AudioEnhancer,
-            ImprovedSpeakerEmbedder,
-            TemporalSmoother,
-        )
-    except ImportError:
-        HYPERFAST_AVAILABLE = False
-    HYPERFAST_AVAILABLE = True
-except ImportError:
-    HYPERFAST_AVAILABLE = False
 
 class TranscriptionEngine(ABC):
     """
@@ -533,16 +529,25 @@ class EngineSelector:
         }
         
         # Add HyperFast V1 engines if available
-        if HYPERFAST_AVAILABLE:
+        if HYPERFAST_AVAILABLE and HyperFastEngine is not None:
             engine_map[SpecificEngine.HYPERFAST] = HyperFastEngine
         
         # Add HyperFast V2 engines if available
         if HYPERFAST_V2_AVAILABLE:
-            engine_map[SpecificEngine.HYPERFAST_V2] = HyperFastV2
-            engine_map[SpecificEngine.HYPERFAST_PRO] = HyperFastPro
+            if HyperFastV2 is not None:
+                engine_map[SpecificEngine.HYPERFAST_V2] = HyperFastV2
+            if HyperFastPro is not None:
+                engine_map[SpecificEngine.HYPERFAST_PRO] = HyperFastPro
         
         engine_class = engine_map.get(engine)
         if not engine_class:
+            # Check if it's a HyperFast engine
+            if engine in [SpecificEngine.HYPERFAST, SpecificEngine.HYPERFAST_V2, SpecificEngine.HYPERFAST_PRO]:
+                raise RuntimeError(
+                    f"{engine.value} not available. "
+                    f"Install HyperFast dependencies:\n"
+                    f"  pip install uace[hyperfast-diarization]"
+                )
             raise ValueError(f"Unknown engine: {engine}")
         
         if not engine_class.is_available():
@@ -564,15 +569,15 @@ class EngineSelector:
                 available.append(engine_class.engine_name())
         
         # HyperFast V1 engines
-        if HYPERFAST_AVAILABLE:
+        if HYPERFAST_AVAILABLE and HyperFastEngine is not None:
             if HyperFastEngine.is_available():
                 available.append(HyperFastEngine.engine_name())
         
         # HyperFast V2 engines
         if HYPERFAST_V2_AVAILABLE:
-            if HyperFastV2.is_available():
+            if HyperFastV2 is not None and HyperFastV2.is_available():
                 available.append(HyperFastV2.engine_name())
-            if HyperFastPro.is_available():
+            if HyperFastPro is not None and HyperFastPro.is_available():
                 available.append(HyperFastPro.engine_name())
         
         return available
