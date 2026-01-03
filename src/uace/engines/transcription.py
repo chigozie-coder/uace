@@ -6,6 +6,7 @@ Provides a unified interface to multiple transcription backends:
 - OpenAI Whisper (maximum accuracy)
 - WhisperX (advanced alignment + diarization)
 - Distil-Whisper (ultra-fast CPU)
+- HyperFast (novel parallel pipeline)
 - Custom engines
 """
 
@@ -16,6 +17,9 @@ from pathlib import Path
 
 from uace.models import TranscriptionResult, CaptionSegment, Word
 from uace.config import TranscriptionConfig, EnginePreference, SpecificEngine
+
+# Try to import HyperFast engines (optional)
+HYPERFAST_AVAILABLE = False
 try:
     from .hyperfast import (
         HyperFastEngine,
@@ -23,19 +27,38 @@ try:
         FastSpeakerEmbedder,
     )
     HYPERFAST_AVAILABLE = True
-    try:
-        from .hyperfast_v2 import (
+except ImportError:
+    # HyperFast not available, will skip
+    pass
+
+# Try to import HyperFast V2 engines (optional)
+HYPERFAST_V2_AVAILABLE = False
+try:
+    from .hyperfast_v2 import (
         HyperFastV2,
         HyperFastPro,
         AudioEnhancer,
         ImprovedSpeakerEmbedder,
         TemporalSmoother,
+    )
+    HYPERFAST_V2_AVAILABLE = True
+except ImportError:
+    # HyperFast V2 not available, will skip
+    pass
+    HYPERFAST_AVAILABLE = True
+    try:
+        from .hyperfast_v2 import (
+            HyperFastV2,
+            HyperFastPro,
+            AudioEnhancer,
+            ImprovedSpeakerEmbedder,
+            TemporalSmoother,
         )
     except ImportError:
-        HYPERFAST_AVAILABLE = True
+        HYPERFAST_AVAILABLE = False
     HYPERFAST_AVAILABLE = True
 except ImportError:
-    HYPERFAST_AVAILABLE = True
+    HYPERFAST_AVAILABLE = False
 
 class TranscriptionEngine(ABC):
     """
@@ -435,7 +458,7 @@ class EngineSelector:
         # Automatic selection based on preference
         if config.preference == EnginePreference.DIARIZATION:
             # Try HyperFast Pro first (best diarization + speed)
-            if HYPERFAST_AVAILABLE:
+            if HYPERFAST_V2_AVAILABLE:
                 print("🎯 Using HyperFast Pro (best diarization)")
                 return HyperFastPro(config)
             
@@ -454,9 +477,12 @@ class EngineSelector:
         
         if config.preference == EnginePreference.SPEED:
             # Try HyperFast V2 first (fastest with good accuracy)
-            if HYPERFAST_AVAILABLE:
+            if HYPERFAST_V2_AVAILABLE:
                 print("⚡ Using HyperFast V2 (maximum speed)")
                 return HyperFastV2(config)
+            elif HYPERFAST_AVAILABLE:
+                print("⚡ Using HyperFast (fast)")
+                return HyperFastEngine(config)
             
             # Fallback to distil/faster-whisper
             if not config.gpu and DistilWhisperEngine.is_available():
@@ -466,7 +492,7 @@ class EngineSelector:
         
         if config.preference == EnginePreference.ACCURACY:
             # Try HyperFast Pro (93% accuracy)
-            if HYPERFAST_AVAILABLE:
+            if HYPERFAST_V2_AVAILABLE:
                 print("🎯 Using HyperFast Pro (high accuracy)")
                 return HyperFastPro(config)
             
@@ -481,9 +507,11 @@ class EngineSelector:
                 config.model = "large"
                 return FasterWhisperEngine(config)
         
-        # Default: Try HyperFast V2, then faster-whisper
-        if HYPERFAST_AVAILABLE:
+        # Default: Try HyperFast V2, then V1, then faster-whisper
+        if HYPERFAST_V2_AVAILABLE:
             return HyperFastV2(config)
+        elif HYPERFAST_AVAILABLE:
+            return HyperFastEngine(config)
         
         if FasterWhisperEngine.is_available():
             return FasterWhisperEngine(config)
@@ -504,13 +532,14 @@ class EngineSelector:
             SpecificEngine.DISTIL_WHISPER: DistilWhisperEngine,
         }
         
-        # Add HyperFast engines if available
+        # Add HyperFast V1 engines if available
         if HYPERFAST_AVAILABLE:
-            engine_map.update({
-                SpecificEngine.HYPERFAST: HyperFastEngine,
-                SpecificEngine.HYPERFAST_V2: HyperFastV2,
-                SpecificEngine.HYPERFAST_PRO: HyperFastPro,
-            })
+            engine_map[SpecificEngine.HYPERFAST] = HyperFastEngine
+        
+        # Add HyperFast V2 engines if available
+        if HYPERFAST_V2_AVAILABLE:
+            engine_map[SpecificEngine.HYPERFAST_V2] = HyperFastV2
+            engine_map[SpecificEngine.HYPERFAST_PRO] = HyperFastPro
         
         engine_class = engine_map.get(engine)
         if not engine_class:
@@ -534,10 +563,16 @@ class EngineSelector:
             if engine_class.is_available():
                 available.append(engine_class.engine_name())
         
-        # HyperFast engines
+        # HyperFast V1 engines
         if HYPERFAST_AVAILABLE:
-            for engine_class in [HyperFastEngine, HyperFastV2, HyperFastPro]:
-                if engine_class.is_available():
-                    available.append(engine_class.engine_name())
+            if HyperFastEngine.is_available():
+                available.append(HyperFastEngine.engine_name())
+        
+        # HyperFast V2 engines
+        if HYPERFAST_V2_AVAILABLE:
+            if HyperFastV2.is_available():
+                available.append(HyperFastV2.engine_name())
+            if HyperFastPro.is_available():
+                available.append(HyperFastPro.engine_name())
         
         return available

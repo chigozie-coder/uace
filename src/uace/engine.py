@@ -1,17 +1,42 @@
 """
-UACE Caption Engine
-
-The main entry point for the UACE pipeline.
-This is what users interact with.
+Main caption processing engine.
 """
 
 import time
 import logging
 from pathlib import Path
 from typing import Optional, Union
-from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
-from tqdm import tqdm
+
+from uace.models import Caption, TranscriptionResult
+from uace.config import ProcessingConfig
+from uace.engines.transcription import EngineSelector
+
+# Graceful rich imports
+try:
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
+    # Minimal stubs
+    class Console:
+        def print(self, *args, **kwargs):
+            print(*args)
+    
+    class Progress:
+        def __init__(self, *args, **kwargs):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def add_task(self, *args, **kwargs):
+            return 0
+        def update(self, *args, **kwargs):
+            pass
+    
+    SpinnerColumn = TextColumn = TimeElapsedColumn = object
+
 
 from uace.config import ProcessingConfig, CleaningMode, ExportFormat
 from uace.models import Caption, ProcessingPipeline, TranscriptionResult

@@ -1,52 +1,83 @@
 """
-Transcription Engines
-
-Multi-engine support for speech-to-text transcription.
+Transcription engines for UACE.
 """
 
 from uace.engines.transcription import (
     TranscriptionEngine,
-    FasterWhisperEngine,
-    WhisperXEngine,
-    DistilWhisperEngine,
     EngineSelector,
 )
 
-# NEW: Import HyperFast engines
+# Try to import existing engines
 try:
-    from .hyperfast import (
+    from uace.engines.transcription import FasterWhisperEngine
+except ImportError:
+    FasterWhisperEngine = None
+
+try:
+    from uace.engines.transcription import WhisperXEngine
+except ImportError:
+    WhisperXEngine = None
+
+try:
+    from uace.engines.transcription import DistilWhisperEngine
+except ImportError:
+    DistilWhisperEngine = None
+
+# Try to import HyperFast engines
+HYPERFAST_AVAILABLE = False
+try:
+    from uace.engines.hyperfast import (
         HyperFastEngine,
         VoiceActivityDetector,
         FastSpeakerEmbedder,
     )
-    from .hyperfast_v2 import (
+    HYPERFAST_AVAILABLE = True
+except ImportError:
+    HyperFastEngine = None
+    VoiceActivityDetector = None
+    FastSpeakerEmbedder = None
+
+# Try to import HyperFast V2
+HYPERFAST_V2_AVAILABLE = False
+try:
+    from uace.engines.hyperfast_v2 import (
         HyperFastV2,
         HyperFastPro,
         AudioEnhancer,
         ImprovedSpeakerEmbedder,
         TemporalSmoother,
     )
-    HYPERFAST_AVAILABLE = True
+    HYPERFAST_V2_AVAILABLE = True
 except ImportError:
-    HYPERFAST_AVAILABLE = False
+    HyperFastV2 = None
+    HyperFastPro = None
+    AudioEnhancer = None
+    ImprovedSpeakerEmbedder = None
+    TemporalSmoother = None
 
 __all__ = [
-    "TranscriptionEngine",
-    "FasterWhisperEngine",
-    "WhisperXEngine",
-    "DistilWhisperEngine",
-    "EngineSelector",
+    'TranscriptionEngine',
+    'EngineSelector',
+    'HYPERFAST_AVAILABLE',
+    'HYPERFAST_V2_AVAILABLE',
 ]
 
+# Add available engines to exports
+if FasterWhisperEngine:
+    __all__.append('FasterWhisperEngine')
+if WhisperXEngine:
+    __all__.append('WhisperXEngine')
+if DistilWhisperEngine:
+    __all__.append('DistilWhisperEngine')
+
 if HYPERFAST_AVAILABLE:
+    __all__.extend(['HyperFastEngine', 'VoiceActivityDetector', 'FastSpeakerEmbedder'])
+
+if HYPERFAST_V2_AVAILABLE:
     __all__.extend([
-        "HyperFastEngine",
-        "HyperFastV2",
-        "HyperFastPro",
-        "VoiceActivityDetector",
-        "FastSpeakerEmbedder",
-        "ImprovedSpeakerEmbedder",
-        "AudioEnhancer",
-        "TemporalSmoother",
-        "HYPERFAST_AVAILABLE"
+        'HyperFastV2',
+        'HyperFastPro',
+        'AudioEnhancer',
+        'ImprovedSpeakerEmbedder',
+        'TemporalSmoother',
     ])
