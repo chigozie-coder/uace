@@ -25,7 +25,7 @@ from scipy.spatial.distance import cosine
 
 from uace.models import TranscriptionResult, CaptionSegment
 from uace.config import TranscriptionConfig
-from uace.engines.transcription import TranscriptionEngine
+from uace.engines.base import TranscriptionEngine
 
 # Import base components from V1
 from .hyperfast import (

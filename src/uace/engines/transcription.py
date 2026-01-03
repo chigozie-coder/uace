@@ -1,29 +1,31 @@
 """
 Transcription Engine Abstraction
 
-Provides a unified interface to multiple transcription backends:
-- faster-whisper (default, fastest)
-- OpenAI Whisper (maximum accuracy)
-- WhisperX (advanced alignment + diarization)
-- Distil-Whisper (ultra-fast CPU)
-- HyperFast (novel parallel pipeline)
-- Custom engines
+Provides a unified interface to multiple transcription backends.
 """
 
 import time
-from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Type
 from pathlib import Path
 
 from uace.models import TranscriptionResult, CaptionSegment, Word
 from uace.config import TranscriptionConfig, EnginePreference, SpecificEngine
 
-# Try to import HyperFast engines (optional)
-HYPERFAST_AVAILABLE = False
+# Import base class (breaks circular import)
+from uace.engines.base import TranscriptionEngine
+
+# Initialize placeholders for optional engines (prevents NameError)
 HyperFastEngine = None
 VoiceActivityDetector = None
 FastSpeakerEmbedder = None
+HyperFastV2 = None
+HyperFastPro = None
+AudioEnhancer = None
+ImprovedSpeakerEmbedder = None
+TemporalSmoother = None
 
+# Try to import HyperFast V1 engines (optional)
+HYPERFAST_AVAILABLE = False
 try:
     from .hyperfast import (
         HyperFastEngine,
@@ -31,18 +33,12 @@ try:
         FastSpeakerEmbedder,
     )
     HYPERFAST_AVAILABLE = True
-except ImportError:
-    print("HyperFast is not available")
+except ImportError as e:
+    # HyperFast not available
     pass
 
 # Try to import HyperFast V2 engines (optional)
 HYPERFAST_V2_AVAILABLE = False
-HyperFastV2 = None
-HyperFastPro = None
-AudioEnhancer = None
-ImprovedSpeakerEmbedder = None
-TemporalSmoother = None
-
 try:
     from .hyperfast_v2 import (
         HyperFastV2,
@@ -52,15 +48,10 @@ try:
         TemporalSmoother,
     )
     HYPERFAST_V2_AVAILABLE = True
-except ImportError:
-    # HyperFast V2 not available, will skip
+except ImportError as e:
+    # HyperFast V2 not available
     pass
 
-from .hyperfast import (
-    HyperFastEngine,
-    VoiceActivityDetector,
-    FastSpeakerEmbedder,
-)
 
 class TranscriptionEngine(ABC):
     """

@@ -28,7 +28,7 @@ from collections import defaultdict
 
 from uace.models import TranscriptionResult, CaptionSegment, Word
 from uace.config import TranscriptionConfig
-from uace.engines.transcription import TranscriptionEngine
+from uace.engines.base import TranscriptionEngine
 
 
 @dataclass
