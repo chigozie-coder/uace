@@ -32,7 +32,7 @@ try:
     )
     HYPERFAST_AVAILABLE = True
 except ImportError:
-    # HyperFast not available, will skip
+    print("HyperFast is not available")
     pass
 
 # Try to import HyperFast V2 engines (optional)
@@ -55,6 +55,12 @@ try:
 except ImportError:
     # HyperFast V2 not available, will skip
     pass
+
+from .hyperfast import (
+    HyperFastEngine,
+    VoiceActivityDetector,
+    FastSpeakerEmbedder,
+)
 
 class TranscriptionEngine(ABC):
     """
