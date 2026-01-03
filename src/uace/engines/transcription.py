@@ -520,7 +520,8 @@ class EngineSelector:
         config: TranscriptionConfig
     ) -> TranscriptionEngine:
         """Get a specific engine by name."""
-        
+        print(HYPERFAST_AVAILABLE)
+        print(HyperFastEngine)
         # Original engines
         engine_map = {
             SpecificEngine.FASTER_WHISPER: FasterWhisperEngine,
